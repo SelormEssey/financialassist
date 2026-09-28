@@ -1,0 +1,32 @@
+transaction_id,date,merchant,category,amount,transaction_type
+txn-001,2026-07-01,Greenway Market,Groceries,72.48,debit
+txn-002,2026-07-02,Metro Transit,Transportation,24.00,debit
+txn-003,2026-07-03,Bean & Bloom,Dining,6.75,debit
+txn-004,2026-07-05,StreamFlix,Subscriptions,15.99,debit
+txn-005,2026-07-06,City Electric,Utilities,94.21,debit
+txn-006,2026-07-08,Greenway Market,Groceries,58.16,debit
+txn-007,2026-07-10,Book Nook,Shopping,28.50,debit
+txn-008,2026-07-12,Cinema House,Entertainment,14.00,debit
+txn-009,2026-07-15,Metro Transit,Transportation,24.00,debit
+txn-010,2026-07-17,Olive Table,Dining,42.80,debit
+txn-011,2026-07-19,Greenway Market,Groceries,81.33,debit
+txn-012,2026-07-21,Cloud Notes,Subscriptions,9.99,debit
+txn-013,2026-07-24,City Electric,Utilities,93.88,debit
+txn-014,2026-07-27,Bean & Bloom,Dining,7.25,debit
+txn-015,2026-07-29,Urban Outfitters,Shopping,64.90,debit
+txn-016,2026-08-01,Greenway Market,Groceries,95.72,debit
+txn-017,2026-08-02,Metro Transit,Transportation,24.00,debit
+txn-018,2026-08-03,Bean & Bloom,Dining,7.25,debit
+txn-019,2026-08-05,StreamFlix,Subscriptions,15.99,debit
+txn-020,2026-08-06,City Electric,Utilities,96.45,debit
+txn-021,2026-08-08,Olive Table,Dining,68.40,debit
+txn-022,2026-08-10,Greenway Market,Groceries,84.63,debit
+txn-023,2026-08-12,Concert Hall,Entertainment,85.00,debit
+txn-024,2026-08-14,Metro Transit,Transportation,24.00,debit
+txn-025,2026-08-16,Urban Outfitters,Shopping,112.35,debit
+txn-026,2026-08-18,Greenway Market,Groceries,79.18,debit
+txn-027,2026-08-20,Olive Table,Dining,54.60,debit
+txn-028,2026-08-22,City Electric,Utilities,97.12,debit
+txn-029,2026-08-24,Cloud Notes,Subscriptions,9.99,debit
+txn-030,2026-08-26,Concert Hall,Entertainment,32.00,credit
+txn-031,2026-08-29,Bean & Bloom,Dining,8.10,debit

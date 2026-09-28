@@ -1,1 +1,1 @@
-"""Reserved for future financial analysis tools; not implemented yet."""
+"""Deterministic financial analysis tools."""
