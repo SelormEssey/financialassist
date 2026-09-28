@@ -19,3 +19,7 @@ coverage.xml
 
 # macOS
 .DS_Store
+
+# Generated local retrieval indexes
+data/index/*.json
+!data/index/.gitkeep

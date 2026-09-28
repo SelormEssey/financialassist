@@ -13,6 +13,8 @@ def isolate_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("FINANCIALASSIST_APP_NAME", raising=False)
     monkeypatch.delenv("FINANCIALASSIST_DEBUG", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("FINANCIALASSIST_EMBEDDING_MODEL", raising=False)
 
 
 def test_settings_use_defaults() -> None:
@@ -48,3 +50,15 @@ def test_environment_variables_override_dotenv(
 
     assert settings.app_name == "environment-service"
     assert settings.debug is False
+
+
+def test_embedding_configuration_uses_expected_environment_variables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FINANCIALASSIST_EMBEDDING_MODEL", "test-embedding-model")
+
+    settings = Settings()
+
+    assert settings.openai_api_key == "test-key"
+    assert settings.embedding_model == "test-embedding-model"

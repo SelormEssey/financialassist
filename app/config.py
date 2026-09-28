@@ -1,5 +1,6 @@
 """Application settings loaded from environment variables and a local .env file."""
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,3 +16,5 @@ class Settings(BaseSettings):
 
     app_name: str = "financialassist"
     debug: bool = False
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    embedding_model: str = "text-embedding-3-small"
