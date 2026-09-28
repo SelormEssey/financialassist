@@ -2,11 +2,10 @@
 
 An agentic financial assistant that combines retrieval, structured financial analysis, tool use, evaluation, and a production-style API.
 
-**Development is in progress.** Phase 3 adds semantic retrieval over synthetic
-financial policy documents alongside the FastAPI scaffold and deterministic
-transaction analysis. It returns evidence and citation-ready metadata only;
-LLM response generation, agent orchestration, and grounded answers are not
-implemented yet.
+**Development is in progress.** Phase 4 adds a single finance agent that selects
+deterministic transaction tools, policy retrieval, or both, and returns grounded
+natural-language responses with validated citation metadata. The final `/ask`
+API and evaluation framework are not implemented yet.
 
 ## Local setup
 
@@ -57,10 +56,11 @@ working directory; otherwise, the defaults below apply.
 | `FINANCIALASSIST_DEBUG` | `false` | Enables FastAPI debug mode when `true`; keep disabled outside local development. |
 | `OPENAI_API_KEY` | — | Required only when building or querying embeddings with OpenAI. |
 | `FINANCIALASSIST_EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model for the local retrieval index. |
+| `FINANCIALASSIST_AGENT_MODEL` | `gpt-5.6-terra` | OpenAI model used by the finance agent. |
 
 `.env` is ignored by Git. `.env.example` documents the supported settings.
-No API key is required to run the API or test suite. An API key is needed only
-for the retrieval scripts, which use the official OpenAI Python SDK.
+No API key is required to run the API or test suite. An API key is needed for
+the retrieval scripts and the finance-agent demo, which use OpenAI SDKs.
 
 ## Run the tests
 
@@ -168,6 +168,52 @@ uv run python scripts/query_retrieval.py "What happens if I make a late payment?
 The scripts print ranked chunks with their sources, scores, citations, and text.
 They do not use an LLM to generate an answer.
 
+## Finance agent
+
+Phase 4 adds one controlled finance agent using the OpenAI Agents SDK. It has
+three local function tools: `summarize_transactions`,
+`compare_transaction_periods`, and `search_financial_documents`. The agent uses
+transaction tools for personal spending facts, document retrieval for Northstar
+policy evidence, and both tools when a question requires both kinds of evidence.
+
+```text
+User question
+      ↓
+Finance Agent
+   /        \
+  ↓          ↓
+Transaction  Retrieval
+Tools        Tool
+  ↓          ↓
+Exact math   Evidence + citations
+   \        /
+    \      /
+ Grounded response
+```
+
+Transaction calculations remain deterministic Python with `Decimal`; the model
+does not calculate financial totals itself. The runtime context holds local
+transactions, the retrieval index, and the embedding provider. It is passed to
+function tools through the Agents SDK and is not inserted into the model prompt.
+At the start of each run, only its observability state is reset; these local
+dependencies remain available for reuse.
+
+Each tool records its stable name only after it completes successfully. The
+retrieval tool records only citations it actually returned. Before the final
+response is returned, citation identifiers are filtered against the evidence
+from that run, deduplicated in retrieval order, and any unrecognized
+citation-like identifier in the answer is removed.
+
+With `OPENAI_API_KEY` and a built retrieval index, run a local demonstration:
+
+```bash
+uv run python scripts/ask_financialassist.py "How much did I spend in August?"
+```
+
+The script fails clearly when the API key or persisted retrieval index is absent.
+It prints the answer, observed tools, and validated citations. It does not expose
+a FastAPI endpoint.
+
 ## Planned architecture
 
 The planned flow is an API request handled by an agent that can select structured
@@ -180,23 +226,23 @@ selection, numerical accuracy, and groundedness.
 | `app/main.py` | Creates the FastAPI application and registers the health route. |
 | `app/config.py` | Loads and validates application settings. |
 | `app/api/` | API routes; currently only `GET /health`. |
-| `app/agents/` | Placeholder for future LLM-based agentic workflows. |
+| `app/agents/` | One finance agent, typed runtime context, controlled function tools, and runner service. |
 | `app/tools/` | Deterministic transaction CSV loading, spending summaries, and period comparisons. |
 | `app/retrieval/` | Markdown loading, chunking, embeddings abstraction, local vector search, and index persistence. |
 | `app/evals/` | Placeholder for future retrieval, tool selection, numerical accuracy, and groundedness evaluations. |
-| `app/models/` | Pydantic schemas for health, transaction analysis, and retrieval. |
+| `app/models/` | Pydantic schemas for health, transaction analysis, retrieval, and agent responses. |
 | `tests/` | API and configuration tests. |
 | `data/documents/` | Synthetic Northstar Financial policy documents for retrieval. |
 | `data/sample_transactions/` | Synthetic CSV used to demonstrate transaction analysis. |
-| `scripts/` | Retrieval-index build and query commands; reserved for future ingestion and evaluation commands. |
+| `scripts/` | Retrieval-index build/query and local finance-agent demonstration commands. |
 | `.github/workflows/` | Empty directory reserved for future GitHub Actions CI. |
 
 Empty directories contain `.gitkeep` files so Git preserves the structure.
-Implemented: FastAPI scaffold, deterministic transaction analysis, document
-loading, Markdown-aware chunking, an embeddings abstraction, semantic retrieval,
-and citation metadata.
+Implemented: FastAPI scaffold, deterministic transaction analysis, semantic
+financial document retrieval, a finance agent, tool selection, transaction
+tools, a retrieval tool, grounded natural-language responses, citation
+validation, and tool-usage tracking.
 
-Not yet implemented: LLM response generation, agent orchestration, agent tool
-selection, grounded natural-language answers, the evaluation framework, a final
-`/ask` API, CI, Docker support, or a frontend. No database, vector database,
+Not yet implemented: a final `/ask` FastAPI endpoint, the evaluation framework,
+GitHub Actions CI, Docker support, or a frontend. No database, vector database,
 LangChain, or LangGraph has been added.
