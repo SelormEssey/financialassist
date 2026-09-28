@@ -18,3 +18,4 @@ class Settings(BaseSettings):
     debug: bool = False
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     embedding_model: str = "text-embedding-3-small"
+    agent_model: str = "gpt-5.6-terra"
