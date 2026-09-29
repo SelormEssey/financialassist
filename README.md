@@ -2,10 +2,9 @@
 
 An agentic financial assistant that combines retrieval, structured financial analysis, tool use, evaluation, and a production-style API.
 
-**Development is in progress.** Phase 4 adds a single finance agent that selects
-deterministic transaction tools, policy retrieval, or both, and returns grounded
-natural-language responses with validated citation metadata. The final `/ask`
-API and evaluation framework are not implemented yet.
+**Development is in progress.** Phase 5 adds an inspectable evaluation framework
+for deterministic arithmetic, retrieval, live agent tool selection, citations,
+and structural policy support. The final `/ask` API is not implemented yet.
 
 ## Local setup
 
@@ -214,6 +213,74 @@ The script fails clearly when the API key or persisted retrieval index is absent
 It prints the answer, observed tools, and validated citations. It does not expose
 a FastAPI endpoint.
 
+## Evaluation framework
+
+Phase 5 adds a small evaluation framework with a hand-authored, ordered golden
+dataset at `evals/golden_dataset.jsonl`. Its 25 cases are based solely on the
+synthetic transaction CSV, Northstar policy documents, and implemented tools:
+seven transaction cases, seven retrieval cases, seven combined cases, and four
+unsupported or insufficient-evidence cases. Monetary expectations are stored as
+Decimal-safe strings, rather than being calculated from the implementation at
+evaluation time.
+
+Run the safe offline evaluation with no API key:
+
+```bash
+uv run python scripts/run_evals.py
+```
+
+This evaluates real `summarize_spending()` and `compare_spending_periods()`
+against the golden values, comparing `Decimal` values exactly. Arithmetic is
+measured independently of an LLM answer so the result demonstrates correctness
+of the financial component itself. Every report includes `dataset_total`,
+`executed_cases`, `passed_cases`, `failed_cases`, and `skipped_cases`. In
+deterministic mode, non-transaction cases are skipped rather than counted as
+failures.
+
+Live modes are opt-in and require both `OPENAI_API_KEY` and a persisted index at
+`data/index/retrieval_index.json`:
+
+```bash
+uv run python scripts/run_evals.py --live-retrieval
+uv run python scripts/run_evals.py --live-agent
+```
+
+Live retrieval reports Recall@k: relevant golden citation IDs returned in the
+first *k* results divided by all relevant golden citation IDs. Recall@1,
+Recall@3, and Recall@5 are calculated per eligible case and reported as the
+macro-average across those cases. Fake embeddings are used only in unit tests to
+validate the metric implementation and are not presented as retrieval quality.
+
+Live agent evaluation uses final validated response citations. Citation precision
+is relevant expected citations returned divided by total final citations returned;
+citation recall is relevant expected citations returned divided by expected
+citations. `unexpected_citation_count` counts final citations outside the golden
+expected set. `unsupported_citation_count` is different: it counts final
+citations absent from citations actually retrieved in that same agent run. The
+live evaluator obtains this provenance from the fresh `FinanceAgentContext` used
+for that case. Where provenance is unavailable, this metric is reported as not
+evaluated rather than zero.
+
+The policy-grounding proxy is structural, not an LLM truthfulness judge: for a
+policy-dependent case, retrieval must run and the final validated response must
+include an expected citation. Unsupported cases make explicit structural
+expectations such as no policy citation; they do not fabricate facts or claim a
+semantic assessment of the answer. Each live agent case receives a fresh
+`FinanceAgentContext` to prevent observability state from leaking across cases.
+Metrics that a mode does not execute are represented as `NOT EVALUATED` with no
+percentage; deterministic mode does not claim retrieval Recall@k, live tool
+selection, live citation provenance, or policy grounding results.
+
+Reports are calculated from each run and can be saved as JSON:
+
+```bash
+uv run python scripts/run_evals.py --json-output evals/results/latest.json
+```
+
+Generated JSON reports under `evals/results/` are ignored by Git; the directory's
+`.gitkeep` remains tracked. This repository intentionally does not publish
+benchmark numbers until a real live evaluation is run.
+
 ## Planned architecture
 
 The planned flow is an API request handled by an agent that can select structured
@@ -229,20 +296,19 @@ selection, numerical accuracy, and groundedness.
 | `app/agents/` | One finance agent, typed runtime context, controlled function tools, and runner service. |
 | `app/tools/` | Deterministic transaction CSV loading, spending summaries, and period comparisons. |
 | `app/retrieval/` | Markdown loading, chunking, embeddings abstraction, local vector search, and index persistence. |
-| `app/evals/` | Placeholder for future retrieval, tool selection, numerical accuracy, and groundedness evaluations. |
+| `app/evals/` | Typed golden-dataset loading, pure metrics, deterministic transaction evaluation, and opt-in live retrieval/agent evaluation. |
 | `app/models/` | Pydantic schemas for health, transaction analysis, retrieval, and agent responses. |
 | `tests/` | API and configuration tests. |
 | `data/documents/` | Synthetic Northstar Financial policy documents for retrieval. |
 | `data/sample_transactions/` | Synthetic CSV used to demonstrate transaction analysis. |
-| `scripts/` | Retrieval-index build/query and local finance-agent demonstration commands. |
+| `scripts/` | Retrieval-index build/query, local finance-agent demonstration, and evaluation commands. |
 | `.github/workflows/` | Empty directory reserved for future GitHub Actions CI. |
 
 Empty directories contain `.gitkeep` files so Git preserves the structure.
 Implemented: FastAPI scaffold, deterministic transaction analysis, semantic
 financial document retrieval, a finance agent, tool selection, transaction
-tools, a retrieval tool, grounded natural-language responses, citation
-validation, and tool-usage tracking.
+tools, a retrieval tool, grounded citations, and an evaluation framework.
 
-Not yet implemented: a final `/ask` FastAPI endpoint, the evaluation framework,
-GitHub Actions CI, Docker support, or a frontend. No database, vector database,
+Not yet implemented: a final `/ask` FastAPI endpoint, GitHub Actions CI, Docker
+support, or a frontend. No database, vector database,
 LangChain, or LangGraph has been added.
