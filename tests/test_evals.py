@@ -11,9 +11,9 @@ from app.evals import runner as evaluation_runner
 from app.evals.agent import evaluate_agent_response, evaluate_live_agent_cases
 from app.evals.dataset import GoldenDatasetError, load_golden_dataset
 from app.evals.metrics import citation_precision, citation_recall, recall_at_k
-from app.evals.models import EvalCase
+from app.evals.models import EvalCase, EvalMetricSummary
 from app.evals.retrieval import evaluate_retrieval_case
-from app.evals.runner import run_deterministic_evaluations
+from app.evals.runner import _count_metric, run_deterministic_evaluations
 from app.evals.transactions import evaluate_transaction_case
 from app.models.agent import FinanceAgentResponse
 from app.models.retrieval import DocumentChunk
@@ -74,6 +74,9 @@ def test_golden_dataset_loads_in_file_order(tmp_path) -> None:
         ({"case_id": "c", "category": "combined", "question": "Both?", "expected_tools": ["search_financial_documents"], "expected_citations": ["[a]" ]}, "Invalid evaluation case"),
         ({"case_id": "u", "category": "unsupported", "question": "Unknown?"}, "Invalid evaluation case"),
         ({**_transaction_raw(), "transaction_evaluation": {"operation": "comparison", "first_start": "2026-08-01", "first_end": "2026-08-31"}}, "Invalid evaluation case"),
+        ({**_transaction_raw(), "expected_tools": ["compare_transaction_periods"]}, "Invalid evaluation case"),
+        ({"case_id": "r", "category": "retrieval", "question": "Policy?", "expected_citations": ["[a]"], "expected_tools": []}, "Invalid evaluation case"),
+        ({"case_id": "c", "category": "combined", "question": "Both?", "expected_tools": ["search_financial_documents", "summarize_transactions"], "expected_citations": ["[a]"]}, "Invalid evaluation case"),
     ],
 )
 def test_golden_dataset_rejects_unknown_and_incomplete_category_cases(tmp_path, row, match: str) -> None:
@@ -104,7 +107,7 @@ def test_recall_at_k_and_fake_retrieval_harness_are_offline() -> None:
     assert recall_at_k(set(), ["[doc#a]"], 1) is None
     chunks = [DocumentChunk(chunk_id="a", document_id="doc", title="Doc", section="A", source="a.md", text="policy a")]
     provider = FakeEmbeddingProvider({"policy a": [1.0], "question": [1.0]})
-    case = EvalCase.model_validate({"case_id": "r", "category": "retrieval", "question": "question", "expected_citations": ["[doc#a]"]})
+    case = EvalCase.model_validate({"case_id": "r", "category": "retrieval", "question": "question", "expected_citations": ["[doc#a]"], "expected_tools": ["search_financial_documents"]})
     result = evaluate_retrieval_case(case, build_index(chunks, provider, provider.model_name), provider)
     assert result.metrics["retrieval_recall_at_1"] == 1.0
 
@@ -131,6 +134,37 @@ def test_unsupported_citation_metric_is_unavailable_without_provenance() -> None
     case = EvalCase.model_validate({"case_id": "r", "category": "retrieval", "question": "Policy?", "expected_citations": ["[a]"], "expected_tools": ["search_financial_documents"]})
     result = evaluate_agent_response(case, FinanceAgentResponse(answer="Answer", citations=["[a]"], tools_used=["search_financial_documents"]))
     assert result.metrics["unsupported_citation_count"] is None
+
+
+def test_run_level_citation_count_metrics_preserve_relevance_and_provenance() -> None:
+    case = EvalCase.model_validate({"case_id": "r", "category": "retrieval", "question": "Policy?", "expected_citations": ["[a]"], "expected_tools": ["search_financial_documents"]})
+    first = evaluate_agent_response(
+        case,
+        FinanceAgentResponse(answer="Answer", citations=["[a]", "[b]"], tools_used=["search_financial_documents"]),
+        ["[a]", "[b]"],
+    )
+    second = evaluate_agent_response(
+        case,
+        FinanceAgentResponse(answer="Answer", citations=["[a]", "[fake]"], tools_used=["search_financial_documents"]),
+        ["[a]"],
+    )
+    unexpected = _count_metric([first, second], "unexpected_citation_count")
+    unsupported = _count_metric([first, second], "unsupported_citation_count")
+    assert (unexpected.availability, unexpected.numerator, unexpected.percentage) == ("evaluated", 2, None)
+    assert (unsupported.availability, unsupported.numerator, unsupported.percentage) == ("evaluated", 1, None)
+
+
+def test_count_metric_renders_without_percentage_formatting() -> None:
+    from scripts.run_evals import format_metric_summary
+
+    summary = EvalMetricSummary(
+        name="unsupported_citation_count",
+        availability="evaluated",
+        numerator=0,
+        denominator=25,
+        percentage=None,
+    )
+    assert format_metric_summary(summary) == "unsupported_citation_count: 0 across 25 eligible cases"
 
 
 @pytest.mark.parametrize(

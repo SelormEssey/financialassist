@@ -15,6 +15,17 @@ from app.evals.runner import (
 )
 
 
+def format_metric_summary(summary) -> str:
+    """Format evaluated percentages, evaluated counts, and unavailable metrics safely."""
+    if summary.availability == "unavailable":
+        return f"{summary.name}: NOT EVALUATED"
+    if summary.percentage is None:
+        return f"{summary.name}: {summary.numerator} across {summary.denominator} eligible cases"
+    if summary.numerator is not None:
+        return f"{summary.name}: {summary.numerator}/{summary.denominator} ({summary.percentage:.1f}%)"
+    return f"{summary.name}: {summary.percentage:.1f}% ({summary.aggregation})"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run financialassist evaluations.")
     modes = parser.add_mutually_exclusive_group()
@@ -36,12 +47,7 @@ def main() -> None:
         f"passed={report.passed_cases}, failed={report.failed_cases}, skipped={report.skipped_cases}"
     )
     for summary in report.metric_summaries:
-        if summary.availability == "unavailable":
-            print(f"{summary.name}: NOT EVALUATED")
-        elif summary.numerator is not None:
-            print(f"{summary.name}: {summary.numerator}/{summary.denominator} ({summary.percentage:.1f}%)")
-        else:
-            print(f"{summary.name}: {summary.percentage:.1f}% ({summary.aggregation})")
+        print(format_metric_summary(summary))
     if args.json_output:
         args.json_output.parent.mkdir(parents=True, exist_ok=True)
         args.json_output.write_text(report.model_dump_json(indent=2), encoding="utf-8")

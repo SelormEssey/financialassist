@@ -64,12 +64,24 @@ class EvalCase(BaseModel):
         if self.category == "transaction":
             if self.transaction_evaluation is None or not self.expected_numeric:
                 raise ValueError("transaction cases require transaction_evaluation and expected_numeric")
+            expected_tool = (
+                "summarize_transactions"
+                if self.transaction_evaluation.operation == "summary"
+                else "compare_transaction_periods"
+            )
+            if self.expected_tools != [expected_tool]:
+                raise ValueError(f"{self.transaction_evaluation.operation} cases require [{expected_tool!r}]")
         elif self.category == "retrieval":
             if not self.expected_citations:
                 raise ValueError("retrieval cases require expected_citations")
+            if self.expected_tools != ["search_financial_documents"]:
+                raise ValueError("retrieval cases require ['search_financial_documents']")
         elif self.category == "combined":
-            if not (transaction_tools & set(self.expected_tools)) or "search_financial_documents" not in self.expected_tools:
-                raise ValueError("combined cases require transaction and retrieval expected_tools")
+            if self.expected_tools not in (
+                ["summarize_transactions", "search_financial_documents"],
+                ["compare_transaction_periods", "search_financial_documents"],
+            ):
+                raise ValueError("combined cases require one transaction tool followed by retrieval")
             if not self.expected_citations:
                 raise ValueError("combined cases require expected_citations")
         elif self.category == "unsupported" and not (

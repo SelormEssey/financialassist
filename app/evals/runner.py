@@ -26,6 +26,7 @@ _LIVE_ONLY_METRICS = (
     "exact_tool_selection_accuracy",
     "citation_precision",
     "citation_recall",
+    "unexpected_citation_count",
     "unsupported_citation_count",
     "policy_grounding_rate",
 )
@@ -80,6 +81,7 @@ def run_live_retrieval_evaluations(
         _unavailable("exact_tool_selection_accuracy"),
         _unavailable("citation_precision"),
         _unavailable("citation_recall"),
+        _unavailable("unexpected_citation_count"),
         _unavailable("unsupported_citation_count"),
         _unavailable("policy_grounding_rate"),
     ]
@@ -107,6 +109,7 @@ def run_live_agent_evaluations(
         _boolean_metric(results, "exact_tool_selection", "exact_tool_selection_accuracy"),
         _macro_metric(citation_results, "citation_precision", "citation_precision"),
         _macro_metric(citation_results, "citation_recall", "citation_recall"),
+        _count_metric(results, "unexpected_citation_count"),
         _count_metric(results, "unsupported_citation_count"),
         _boolean_metric(citation_results, "policy_grounded", "policy_grounding_rate"),
     ] + [_unavailable(f"retrieval_recall_at_{k}") for k in (1, 3, 5)]
