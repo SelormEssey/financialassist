@@ -23,3 +23,7 @@ coverage.xml
 # Generated local retrieval indexes
 data/index/*.json
 !data/index/.gitkeep
+
+# Generated evaluation reports
+evals/results/*.json
+!evals/results/.gitkeep
